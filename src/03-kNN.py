@@ -12,6 +12,8 @@
 import os
 import numpy as np
 import random
+import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
 
 
 def prepare_iris_data():
@@ -36,19 +38,110 @@ def prepare_iris_data():
     return 0
 
 
+class Drawer():
+    def maxDepth(self, root):
+        if root == None:
+            return 0
+        # print(root.val)
+        iLeft = self.maxDepth(root.left)
+        iRight = self.maxDepth(root.right)
+        iMax = iLeft if (iLeft > iRight) else iRight
+        return iMax + 1
+
+    def draw_node(self, ax, tRoot, iX, iY):
+        if tRoot is None:
+            return None
+        iDepth = self.maxDepth(tRoot)
+        cir = Circle(xy=(iX, iY), radius=1.5, alpha=0.5)
+        ax.add_patch(cir)
+        plt.text(iX - 0.9, iY - 0.3, str(tRoot.val), fontsize=10)
+
+        if (tRoot.left):
+            plt.plot([iX - 1, iX - 2 * iDepth + 1], [iY - 1, iY - 4 + 1], "b")
+        if (tRoot.right):
+            plt.plot([iX + 1, iX + 2 * iDepth - 1], [iY - 1, iY - 4 + 1], "b")
+        self.draw_node(ax, tRoot.left, iX - 2 * iDepth, iY - 4)
+        self.draw_node(ax, tRoot.right, iX + 2 * iDepth, iY - 4)
+
+    def draw_tree(self, tRoot):
+        fig = plt.figure(1, facecolor="white")
+        fig.clf()
+        ax = fig.add_subplot(111)
+        self.draw_node(ax, tRoot, 0, 8)
+        plt.xlim(-15, 15)
+        plt.ylim(-15, 15)
+        plt.show()
+
+
+class TreeNode(object):
+    def __init__(self, npX):
+        self.val = npX
+        self.left = None
+        self.right = None
+
+
 class KNN():
     def __init__(self, npX, npTag):
         self.npX = npX
         self.npTag = npTag
         self.samplersCount = self.npX.shape[0]
+        iKFeature = 0
+        self.tRoot = self.create_kdtree(iKFeature, npX)
+        drawer = Drawer()
+        drawer.draw_tree(self.tRoot)
 
-    def compute_euclidean_distance(self, npA, npB):
+    def create_kdtree(self, iKFeature, npX):
+        if npX.shape[0] == 0:
+            return None
+        npX = npX[npX[:, iKFeature].argsort()]
+        npXLeft = npX[:int(npX.shape[0] / 2)]
+        npXRight = npX[int(npX.shape[0] / 2) + 1:]
+        tRoot = TreeNode(npX[int(npX.shape[0] / 2)])
+        # print(npX[int(npX.shape[0] / 2)])
+        tRoot.left = self.create_kdtree((iKFeature + 1) % npX.shape[1], npXLeft)
+        tRoot.right = self.create_kdtree((iKFeature + 1) % npX.shape[1],
+                                         npXRight)
+        return tRoot
+
+    def find_nearest(self, npX):
+        npNearest = self.tRoot.val
+        tNearestNode = self.tRoot
+        iKFeature = 0
+        lNodePath = []
+        lNodePath.append(tNearestNode)
+        while (True):
+            iKFeature = iKFeature % npX.shape[0]
+            if (npX[iKFeature] <= tNearestNode.val[iKFeature]):
+                if (tNearestNode.left is None):
+                    break
+                else:
+                    tNearestNode = tNearestNode.left
+            else:
+                if (tNearestNode.right is None):
+                    break
+                else:
+                    tNearestNode = tNearestNode.right
+            lNodePath.append(tNearestNode)
+            iKFeature += 1
+
+        for i in range(len(lNodePath)):
+            print(lNodePath[i].val)
+
+        fNearestDist = self.compute_distance(npX, tNearestNode.val)
+        for i in range(len(lNodePath)):
+            tCurrentNode = lNodePath.pop(len(lNodePath) - i)
+            fCurrentDist = self.compute_distance(npX, tCurrentNode.val)
+            if (fCurrentDist < fNearestDist):
+                fNearestDist = fCurrentDist
+                tNearestNode = tCurrentNode
+
+    def compute_distance(self, npA, npB):
         return np.sqrt(np.sum(np.square((npA - npB))))
 
     def infer(self, k, npInferX):
         lDist = []
         for i in range(self.samplersCount):
-            fDist = self.compute_euclidean_distance(npInferX, self.npX[i])
+            fDist = self.compute_distance(npInferX, self.npX[i])
             lDist.append(fDist)
 
         npRank = np.argsort(lDist)
@@ -77,6 +170,7 @@ class KNN():
 def main():
     # 数据准备,执行一次即可
     # prepare_iris_data()
+
     npX = np.load("../data/iris/npX.npy")
     npY = np.load("../data/iris/npY.npy")
 
@@ -86,12 +180,11 @@ def main():
     npTrainY = npY[:int(fSplit * npX.shape[0])]
     npTestY = npY[int(fSplit * npX.shape[0]):]
 
+    npTrainX = np.array([[2, 3], [5, 4], [9, 6], [4, 7], [8, 1], [7, 2]])
+    npTrainY = np.array([1, 1, 2, 2, 3, 3])
+
     knn = KNN(npTrainX, npTrainY)
-    knn.infer(4,npTestX[0])
-
-    for i in range(1,10):
-        knn.test(i, npTestX, npTestY)
-
+    knn.find_nearest(np.array([2, 4.5]))
 
 
 if __name__ == "__main__":
