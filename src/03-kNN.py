@@ -74,10 +74,11 @@ class Drawer():
 
 
 class TreeNode(object):
-    def __init__(self, npX):
+    def __init__(self, npX, iSplitIndex):
         self.val = npX
         self.left = None
         self.right = None
+        self.iSplit = iSplitIndex
 
 
 class KNN():
@@ -96,44 +97,16 @@ class KNN():
         npX = npX[npX[:, iKFeature].argsort()]
         npXLeft = npX[:int(npX.shape[0] / 2)]
         npXRight = npX[int(npX.shape[0] / 2) + 1:]
-        tRoot = TreeNode(npX[int(npX.shape[0] / 2)])
+        tRoot = TreeNode(npX[int(npX.shape[0] / 2)], iKFeature)
         # print(npX[int(npX.shape[0] / 2)])
         tRoot.left = self.create_kdtree((iKFeature + 1) % npX.shape[1], npXLeft)
         tRoot.right = self.create_kdtree((iKFeature + 1) % npX.shape[1],
                                          npXRight)
         return tRoot
 
-    def find_nearest(self, npX):
-        npNearest = self.tRoot.val
-        tNearestNode = self.tRoot
-        iKFeature = 0
-        lNodePath = []
-        lNodePath.append(tNearestNode)
-        while (True):
-            iKFeature = iKFeature % npX.shape[0]
-            if (npX[iKFeature] <= tNearestNode.val[iKFeature]):
-                if (tNearestNode.left is None):
-                    break
-                else:
-                    tNearestNode = tNearestNode.left
-            else:
-                if (tNearestNode.right is None):
-                    break
-                else:
-                    tNearestNode = tNearestNode.right
-            lNodePath.append(tNearestNode)
-            iKFeature += 1
-
-        for i in range(len(lNodePath)):
-            print(lNodePath[i].val)
-
-        fNearestDist = self.compute_distance(npX, tNearestNode.val)
-        for i in range(len(lNodePath)):
-            tCurrentNode = lNodePath.pop(len(lNodePath) - i)
-            fCurrentDist = self.compute_distance(npX, tCurrentNode.val)
-            if (fCurrentDist < fNearestDist):
-                fNearestDist = fCurrentDist
-                tNearestNode = tCurrentNode
+    def find_nearest(self, npX, tRoot, tPoint, fDist):
+        if (tRoot.left == tRoot.right == None):
+            return None
 
     def compute_distance(self, npA, npB):
         return np.sqrt(np.sum(np.square((npA - npB))))
@@ -183,8 +156,11 @@ def main():
     npTrainX = np.array([[2, 3], [5, 4], [9, 6], [4, 7], [8, 1], [7, 2]])
     npTrainY = np.array([1, 1, 2, 2, 3, 3])
 
+    npTrainX = np.array([[2, 3], [5, 4], [6, 6]])
+    npTrainY = np.array([1, 1, 2])
+
     knn = KNN(npTrainX, npTrainY)
-    knn.find_nearest(np.array([2, 4.5]))
+    knn.find_nearest(np.array([4, 6]))
 
 
 if __name__ == "__main__":
