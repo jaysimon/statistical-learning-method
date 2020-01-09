@@ -21,7 +21,7 @@ class DecisonTreeNode(object):
         """
         self.sFeature = sFeature
         self.sClass = sClass
-        self.dcNode = None
+        self.dcNode = {}
 
     def add_leaf(self, sItemFeature, node):
         self.dcNode[sItemFeature] = node
@@ -115,12 +115,16 @@ class DecisionTree():
         :param sD: 分类列名
         :return: 返回最优特征名
         """
-        lIndex = pdData.columns.values.tolist()
+        lIndex = pdData.columns.values.tolist()  # 获取特征列表
         # print(lIndex)
         lFeatures = lIndex[1:-1]
         # print(lFeatures)
 
         dcResult = {}
+
+        if len(set(pdData.loc[:, sD].tolist())) == 1:
+            return None, 0
+
         for sFeature in lFeatures:
             if (self.sMethod == "ID3"):
                 dcResult[sFeature] = self.information_gain(pdData, sD, sFeature)
@@ -129,7 +133,7 @@ class DecisionTree():
                                                                  sFeature)
             else:
                 print("[Log] Wrong sMethod: ", self.sMethod)
-        print(dcResult)
+        # print(dcResult)
         return max(dcResult, key=dcResult.get), dcResult[max(dcResult)]
 
     def get_max_class(self, pdData, sD):
@@ -145,17 +149,8 @@ class DecisionTree():
                 dcFeature[item] = lFeature.count(item)
         return max(dcFeature, key=dcFeature.get)
 
-    # def create_treedsaf(self):
-    #     sRootFeature = self.choose_feature(self.pdData, "类别")
-    #     # print(sRootFeature)
-    #     sClass = self.get_max_class(self.pdData, "类别")
-    #
-    #     node = DecisonTreeNode(sFeature=sRootFeature, sClass=sClass)
-    #     self.tree.create_node("Root", "root", data=node)
-    #     self.tree.show(data_property="sFeature")
-
     def create_node(self, pdData):
-        sRootFeature, fMaxGain = self.choose_feature(self.pdData, "类别")
+        sRootFeature, fMaxGain = self.choose_feature(pdData, "类别")
 
         # 返回条件,当类别只有一类,或者信息增益小于最小信息增益时
         if (len(set(pdData.loc[:, "类别"].tolist())) == 1 or
@@ -166,18 +161,12 @@ class DecisionTree():
 
         sClass = self.get_max_class(self.pdData, "类别")
         node = DecisonTreeNode(sRootFeature, sClass)
-        for itemFeature in set(pdData.loc[:, sRootFeature].tolist()):
-            pdNewData = pdData[pdData[sRootFeature]].copy()
-            pdNewData.drop(sRootFeature)
-            node.add_leaf(itemFeature, self.create_node(pdNewData))
+        for sValue in set(pdData.loc[:, sRootFeature].tolist()):
+            pdNewData = pdData[pdData[sRootFeature] == sValue].copy()
+            pdNewData.drop(sRootFeature, axis=1, inplace=True)
+            # print(pdNewData)
+            node.add_leaf(sValue, self.create_node(pdNewData))
 
-        # pdNewData = self.pdData[self.pdData[sRootFeature] == "是"].copy()
-        # pdNewData.drop([sRootFeature], axis=1, inplace=True)
-        # print(pdNewData)
-
-        # node = DecisonTreeNode(sFeature=sRootFeature, sClass=sClass)
-
-        # self.tree.create_node(data=node)
         return node
 
 
@@ -185,11 +174,16 @@ def main():
     sDataPath = "../data/贷款申请样本数据表-决策树.csv"
 
     pdData = pd.read_csv(sDataPath)
-    decisionTree = DecisionTree(pdData, fMinInfoGain=0.05, sMethod="ID3")
+
+    # 分类算法: "ID3"(用信息增益进行分类)
+    # 或者　
+    # "C4.5"(用信息增益比进行分类)
+    decisionTree = DecisionTree(pdData, fMinInfoGain=0.05, sMethod="C4.5")
 
     # print(decisionTree.choose_feature(pdData, "类别", "information_gain"))
     node = decisionTree.create_node(pdData)
     pass
+
 
 if __name__ == "__main__":
     main()
