@@ -52,7 +52,7 @@ class DecisionTree():
         fH = 0.0
         for sFeature in lSetFeature:
             iFreq = lFeature.count(sFeature)
-            # print(sFeature, iFreq)
+            # print(sIndex, iFreq)
             fH -= (iFreq / iLen) * math.log((iFreq / iLen), 2)
         # print(fEntrop)
         return fH
